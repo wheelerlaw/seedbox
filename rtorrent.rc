@@ -12,7 +12,9 @@ method.insert = cfg.socket_dir,  private|const|string, (cfg.data_dir)
 execute.throw = mkdir, -p, (cfg.torrent_dir), (cfg.active), (cfg.completed), (cfg.watch), (cfg.data_dir), (cfg.session_dir), (cfg.logs), (cfg.socket_dir)
 
 network.scgi.open_local = (cat, (cfg.socket_dir), "rtorrent.sock")
+execute.nothrow = sh, -c, (cat, "echo > ", (cfg.socket_dir), "rtorrent.pid", " ", (system.pid))
 execute.nothrow = chmod, 770, (cat, (cfg.socket_dir), "rtorrent.sock")
+execute.nothrow = chmod, 776, (cat, (cfg.socket_dir), "rtorrent.pid")
 encoding.add = UTF-8
 network.port_range.set = 49155-49155
 network.port_random.set = no

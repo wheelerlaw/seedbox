@@ -1,0 +1,25 @@
+version: "3"
+services:
+  rtorrent:
+    build:
+      context: .
+      dockerfile: rtorrent.Dockerfile
+    pid: "host"
+    volumes:
+      - ./data:/rtorrent/data
+      - ./torrents:/rtorrent/torrents
+    ports:
+      - "49155:49155"
+      - "49156:49156"
+  flood:
+    build:
+      context: flood
+      dockerfile: Dockerfile
+    environment:
+      RTORRENT_SOCK: "true"
+    env_file:
+      - secrets.env
+    volumes:
+      - ./data:/data
+    ports:
+      - "8080:3000"

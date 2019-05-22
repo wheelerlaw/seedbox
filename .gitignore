@@ -3,3 +3,4 @@
 .vagrant/
 torrents/
 data/
+secrets.env
