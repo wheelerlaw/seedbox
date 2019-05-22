@@ -1,0 +1,65 @@
+method.insert = cfg.torrent_dir, private|const|string, "/rtorrent/torrents/"
+method.insert = cfg.active,    private|const|string, (cat,(cfg.torrent_dir),"active/")
+method.insert = cfg.completed,   private|const|string, (cat,(cfg.torrent_dir),"completed/")
+method.insert = cfg.watch,       private|const|string, (cat,(cfg.torrent_dir),"watch/")
+
+method.insert = cfg.data_dir,     private|const|string, "/rtorrent/data/"
+method.insert = cfg.session_dir, private|const|string, (cat, (cfg.data_dir), "session/")
+method.insert = cfg.logs,        private|const|string, (cat, (cfg.data_dir), "logs/")
+method.insert = cfg.logfile,     private|const|string, (cat, (cfg.logs), "rtorrent-", (system.time), ".log")
+method.insert = cfg.socket_dir,  private|const|string, (cfg.data_dir)
+
+execute.throw = mkdir, -p, (cfg.torrent_dir), (cfg.active), (cfg.completed), (cfg.watch), (cfg.data_dir), (cfg.session_dir), (cfg.logs), (cfg.socket_dir)
+network.scgi.open_local = (cat, (cfg.socket_dir), "rtorrent.socket")
+execute.nothrow = chmod, 770, (cat, (cfg.socket_dir), "rtorrent.socket")
+execute.nothrow = sh, -c, (cat, "echo > ", (cfg.socket_dir), "rtorrent.pid", " ", (system.pid))
+encoding.add = UTF-8
+network.port_range.set = 49155-49155
+network.port_random.set = no
+pieces.hash.on_completion.set = yes
+directory.default.set = (cfg.active)
+session.path.set = (cfg.session_dir)
+protocol.encryption.set = allow_incoming, require, require_RC4, try_outgoing, enable_retry
+schedule2 = watch_directory, 1, 1, ((load.start, (cat, (cfg.watch), *.torrent)))
+schedule2 = low_diskspace,1,30,close_low_diskspace=500M
+trackers.use_udp.set = yes
+dht.mode.set = auto
+dht.port.set = 49156
+protocol.pex.set = yes
+throttle.min_peers.normal.set = 10
+throttle.max_peers.normal.set = 100
+throttle.min_peers.seed.set = -1
+throttle.max_peers.seed.set = -1
+throttle.max_uploads.set = 15
+log.execute = (cat, (cfg.logs), "execute.log")
+print = (cat, "Logging to ", (cfg.logfile))
+log.open_file = "log", (cfg.logfile)
+log.add_output = "debug", "log"
+# This is causing issues
+#method.set_key = event.download.hash_done, move_complete, "d.directory.set=$cfg.completed=; execute=mv,-n,$d.get_base_path=,$cfg.completed="
+network.http.dns_cache_timeout.set = 25
+system.daemon.set = true
+
+# Set scrape intervals for active (~10 mins) and idle items (~12 hours)
+method.insert = cfg.scrape_interval.active, value,   580
+method.insert = cfg.scrape_interval.idle,   value, 43180
+
+# Regularly update scrape information for all torrents (even stopped ones), it won't affect the operation of rtorrent, but nice to have these values updated.
+# This info is only updated when rtorrent starts or a torrent is added by default.
+# Try to balance calls to not fire them up at the same time (since multiscraping isn't implemented in libtorrent). Check for update every 5 minutes and distinguish between 2 groups:
+#   - transferring (uploading and/or downloading) torrents: update in every 10 minutes
+#   - non-transferring torrents: update in every 12 hours
+# helper method: sets current time in a custom field (tm_last_scrape) and saves session
+method.insert = d.last_scrape.set, simple|private, "d.custom.set=tm_last_scrape,$cat=$system.time=; d.save_resume="
+# helper method: sends the scrape request and sets the tm_last_scrape timestamp and saves session
+method.insert = d.last_scrape.send_set, simple, "d.tracker.send_scrape=0;d.last_scrape.set="
+# helper method: decides whether the required time interval (with the help of an argument) has passed and if so calls the above method
+method.insert = d.last_scrape.check_elapsed, simple|private, "branch={(elapsed.greater,$d.custom=tm_last_scrape,$argument.0=),d.last_scrape.send_set=}"
+# helper method: checks for non-existing/empty custom field to be able to test its validity later
+method.insert = d.last_scrape.check, simple|private, "branch={d.custom=tm_last_scrape,d.last_scrape.check_elapsed=$argument.0=,d.last_scrape.send_set=}"
+# sets custom field (tm_last_scrape) to current time only for torrents just has been added (skips setting time on purpose when rtorrent started)
+method.set_key = event.download.inserted_new, ~last_scrape_i, "d.last_scrape.set="
+# check for update every 5 minutes (300 sec) and update scrape info for transferring torrents in every 10 minutes (600-20=580 sec) and for non-transferring ones in every 12 hours (43200-20=43180 sec)
+schedule2 = last_scrape_t, 300, 300, "d.multicall2=default,\"branch=\\\"or={d.up.rate=,d.down.rate=}\\\",d.last_scrape.check=$cfg.scrape_interval.active=,d.last_scrape.check=$cfg.scrape_interval.idle=\""
+
+try_import = /rtorrent/session/rtorrent-custom.rc
