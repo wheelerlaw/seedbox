@@ -10,13 +10,13 @@ method.insert = cfg.logfile,     private|const|string, (cat, (cfg.logs), "rtorre
 method.insert = cfg.socket_dir,  private|const|string, (cfg.data_dir)
 
 execute.throw = mkdir, -p, (cfg.torrent_dir), (cfg.active), (cfg.completed), (cfg.watch), (cfg.data_dir), (cfg.session_dir), (cfg.logs), (cfg.socket_dir)
-network.scgi.open_local = (cat, (cfg.socket_dir), "rtorrent.socket")
-execute.nothrow = chmod, 770, (cat, (cfg.socket_dir), "rtorrent.socket")
-execute.nothrow = sh, -c, (cat, "echo > ", (cfg.socket_dir), "rtorrent.pid", " ", (system.pid))
+
+network.scgi.open_local = (cat, (cfg.socket_dir), "rtorrent.sock")
+execute.nothrow = chmod, 770, (cat, (cfg.socket_dir), "rtorrent.sock")
 encoding.add = UTF-8
 network.port_range.set = 49155-49155
 network.port_random.set = no
-pieces.hash.on_completion.set = yes
+pieces.hash.on_completion.set = no
 directory.default.set = (cfg.active)
 session.path.set = (cfg.session_dir)
 protocol.encryption.set = allow_incoming, require, require_RC4, try_outgoing, enable_retry
@@ -35,8 +35,12 @@ log.execute = (cat, (cfg.logs), "execute.log")
 print = (cat, "Logging to ", (cfg.logfile))
 log.open_file = "log", (cfg.logfile)
 log.add_output = "debug", "log"
-# This is causing issues
-#method.set_key = event.download.hash_done, move_complete, "d.directory.set=$cfg.completed=; execute=mv,-n,$d.get_base_path=,$cfg.completed="
+
+method.insert = d.get_finished_dir, simple, "cfg.completed="
+method.insert = d.data_path, simple, "if=(d.is_multi_file), (cat,(d.directory),/), (cat,(d.directory),/,(d.name))"
+method.insert = d.move_to_complete, simple, "d.directory.set=$argument.1=; execute=mkdir,-p,$argument.1=; execute=mv,-u,$argument.0=,$argument.1=; d.save_full_session="
+method.set_key = event.download.finished, move_complete, "d.move_to_complete=$d.data_path=,$d.get_finished_dir="
+
 network.http.dns_cache_timeout.set = 25
 system.daemon.set = true
 
