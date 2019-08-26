@@ -6,8 +6,8 @@ services:
       dockerfile: rtorrent.Dockerfile
     pid: "host"
     volumes:
-      - ./data:/rtorrent/data
-      - ./torrents:/rtorrent/torrents
+      - ${SEEDBOX_DATA:-./data}:/rtorrent/data
+      - ${SEEDBOX_TORRENTS:-./torrents}:/rtorrent/torrents
     ports:
       - "49155:49155"
       - "49156:49156"
@@ -20,6 +20,6 @@ services:
     env_file:
       - secrets.env
     volumes:
-      - ./data:/data
+      - ${SEEDBOX_DATA:-./data}:/data
     ports:
       - "8080:3000"
