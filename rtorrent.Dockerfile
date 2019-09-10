@@ -24,9 +24,9 @@ RUN apt-get update && apt-get upgrade -y \
  && mkdir /rtorrent
 
 COPY rtorrent.rc /etc/rtorrent.rc
+COPY plex_link.sh /usr/bin/plex_link.sh
 
-VOLUME /rtorrent/torrents
-VOLUME /rtorrent/data
+VOLUME /data
 
 EXPOSE 49155
 EXPOSE 49156

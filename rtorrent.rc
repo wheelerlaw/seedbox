@@ -1,15 +1,17 @@
-method.insert = cfg.torrent_dir, private|const|string, "/rtorrent/torrents/"
-method.insert = cfg.active,    private|const|string, (cat,(cfg.torrent_dir),"active/")
-method.insert = cfg.completed,   private|const|string, (cat,(cfg.torrent_dir),"completed/")
-method.insert = cfg.watch,       private|const|string, (cat,(cfg.torrent_dir),"watch/")
+method.insert = cfg.data_dir,     private|const|string, "/data/"
 
-method.insert = cfg.data_dir,     private|const|string, "/rtorrent/data/"
-method.insert = cfg.session_dir, private|const|string, (cat, (cfg.data_dir), "session/")
+method.insert = cfg.torrent_dir, private|const|string, (cat, (cfg.data_dir), "torrents/")
+method.insert = cfg.active,      private|const|string, (cat, (cfg.torrent_dir), "active/")
+method.insert = cfg.completed,   private|const|string, (cat, (cfg.torrent_dir), "completed/")
+method.insert = cfg.watch,       private|const|string, (cat, (cfg.torrent_dir), "watch/")
+
+method.insert = cfg.rtorrent_dir, private|const|string, (cat, (cfg.data_dir), "rtorrent/")
+method.insert = cfg.session_dir, private|const|string, (cat, (cfg.rtorrent_dir), "session/")
 method.insert = cfg.logs,        private|const|string, (cat, (cfg.data_dir), "logs/")
 method.insert = cfg.logfile,     private|const|string, (cat, (cfg.logs), "rtorrent-", (system.time), ".log")
-method.insert = cfg.socket_dir,  private|const|string, (cfg.data_dir)
+method.insert = cfg.socket_dir,  private|const|string, cfg.rtorrent_dir
 
-execute.throw = mkdir, -p, (cfg.torrent_dir), (cfg.active), (cfg.completed), (cfg.watch), (cfg.data_dir), (cfg.session_dir), (cfg.logs), (cfg.socket_dir)
+execute.throw = mkdir, -p, (cfg.torrent_dir), (cfg.active), (cfg.completed), (cfg.watch), (cfg.rtorrent_dir), (cfg.session_dir), (cfg.logs), (cfg.socket_dir)
 
 network.scgi.open_local = (cat, (cfg.socket_dir), "rtorrent.sock")
 execute.nothrow = sh, -c, (cat, "echo > ", (cfg.socket_dir), "rtorrent.pid", " ", (system.pid))
@@ -43,6 +45,9 @@ method.insert = d.data_path, simple, "if=(d.is_multi_file), (cat,(d.directory),/
 method.insert = d.move_to_complete, simple, "d.directory.set=$argument.1=; execute=mkdir,-p,$argument.1=; execute=mv,-u,$argument.0=,$argument.1=; d.save_full_session="
 method.set_key = event.download.finished, move_complete, "d.move_to_complete=$d.data_path=,$d.get_finished_dir="
 
+method.insert = d.plex_link, simple, "execute=plex_link.sh,$argument.0=,$argument.1=,$argument.2="
+method.set_key = event.download.finished, tag_file, "d.plex_link=$d.custom1=,$d.data_path=,$d.is_multi_file="
+
 network.http.dns_cache_timeout.set = 25
 system.daemon.set = true
 
@@ -68,4 +73,4 @@ method.set_key = event.download.inserted_new, ~last_scrape_i, "d.last_scrape.set
 # check for update every 5 minutes (300 sec) and update scrape info for transferring torrents in every 10 minutes (600-20=580 sec) and for non-transferring ones in every 12 hours (43200-20=43180 sec)
 schedule2 = last_scrape_t, 300, 300, "d.multicall2=default,\"branch=\\\"or={d.up.rate=,d.down.rate=}\\\",d.last_scrape.check=$cfg.scrape_interval.active=,d.last_scrape.check=$cfg.scrape_interval.idle=\""
 
-try_import = /rtorrent/session/rtorrent-custom.rc
+try_import = (cat, (cfg.rtorrent_dir), "rtorrent-custom.rc")
