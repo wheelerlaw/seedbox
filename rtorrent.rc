@@ -1,15 +1,15 @@
 method.insert = cfg.data_dir,     private|const|string, "/data/"
 
-method.insert = cfg.torrent_dir, private|const|string, (cat, (cfg.data_dir), "torrents/")
-method.insert = cfg.active,      private|const|string, (cat, (cfg.torrent_dir), "active/")
-method.insert = cfg.completed,   private|const|string, (cat, (cfg.torrent_dir), "completed/")
-method.insert = cfg.watch,       private|const|string, (cat, (cfg.torrent_dir), "watch/")
+method.insert = cfg.torrent_dir,  private|const|string, (cat, (cfg.data_dir), "torrents/")
+method.insert = cfg.active,       private|const|string, (cat, (cfg.torrent_dir), "active/")
+method.insert = cfg.completed,    private|const|string, (cat, (cfg.torrent_dir), "completed/")
+method.insert = cfg.watch,        private|const|string, (cat, (cfg.torrent_dir), "watch/")
 
 method.insert = cfg.rtorrent_dir, private|const|string, (cat, (cfg.data_dir), "rtorrent/")
-method.insert = cfg.session_dir, private|const|string, (cat, (cfg.rtorrent_dir), "session/")
-method.insert = cfg.logs,        private|const|string, (cat, (cfg.data_dir), "logs/")
-method.insert = cfg.logfile,     private|const|string, (cat, (cfg.logs), "rtorrent-", (system.time), ".log")
-method.insert = cfg.socket_dir,  private|const|string, cfg.rtorrent_dir
+method.insert = cfg.session_dir,  private|const|string, (cat, (cfg.rtorrent_dir), "session/")
+method.insert = cfg.logs,         private|const|string, (cat, (cfg.data_dir), "logs/")
+method.insert = cfg.logfile,      private|const|string, (cat, (cfg.logs), "rtorrent-", (system.time), ".log")
+method.insert = cfg.socket_dir,   private|const|string, (cfg.rtorrent_dir)
 
 execute.throw = mkdir, -p, (cfg.torrent_dir), (cfg.active), (cfg.completed), (cfg.watch), (cfg.rtorrent_dir), (cfg.session_dir), (cfg.logs), (cfg.socket_dir)
 
@@ -23,7 +23,8 @@ network.port_random.set = no
 pieces.hash.on_completion.set = no
 directory.default.set = (cfg.active)
 session.path.set = (cfg.session_dir)
-protocol.encryption.set = allow_incoming, require, require_RC4, try_outgoing, enable_retry
+#protocol.encryption.set = allow_incoming, require, require_RC4, try_outgoing, enable_retry
+protocol.encryption.set = allow_incoming,try_outgoing,enable_retry
 schedule2 = watch_directory, 1, 1, ((load.start, (cat, (cfg.watch), *.torrent)))
 schedule2 = low_diskspace,1,30,close_low_diskspace=500M
 trackers.use_udp.set = yes
@@ -42,14 +43,17 @@ log.add_output = "debug", "log"
 
 method.insert = d.get_finished_dir, simple, "cfg.completed="
 method.insert = d.data_path, simple, "if=(d.is_multi_file), (cat,(d.directory),/), (cat,(d.directory),/,(d.name))"
-method.insert = d.move_to_complete, simple, "d.directory.set=$argument.1=; execute=mkdir,-p,$argument.1=; execute=mv,-u,$argument.0=,$argument.1=; d.save_full_session="
-method.set_key = event.download.finished, move_complete, "d.move_to_complete=$d.data_path=,$d.get_finished_dir="
+method.insert = d.post_process, simple, "d.directory.set=$argument.1=; execute=mkdir,-p,$argument.1=; execute=mv,-u,$argument.0=,$argument.1=; d.save_full_session=; execute=rtorrent-postprocess.sh,$d.directory=,$d.is_multi_file=,$d.name=,$d.custom1="
+method.set_key = event.download.finished, post_process, "d.post_process=$d.data_path=,$d.get_finished_dir="
+#method.insert = d.post_process, simple, "d.directory.set=$argument.4; execute=rtorrent-postprocess.sh,$argument.0=,$argument.1=,$argument.2=,$argument.3=,$argument.4; d.save_full_session="
+#method.set_key = event.download.finished, post_process, "d.post_process=$d.data_path=,$d.is_multi_file=,$d.name=,$d.custom1=,$d.get_finished_dir="
 
-method.insert = d.plex_link, simple, "execute=plex_link.sh,$argument.0=,$argument.1=,$argument.2="
-method.set_key = event.download.finished, tag_file, "d.plex_link=$d.custom1=,$d.data_path=,$d.is_multi_file="
+#method.insert = d.plex_link, simple, "execute=plex_link.sh,$argument.0=,$argument.1=,$argument.2=,$argument.3="
+#method.set_key = event.download.finished, tag_file, "d.plex_link=$d.get_base_path=,$d.is_multi_file=,$d.get_name=,$d.custom1="
 
 network.http.dns_cache_timeout.set = 25
-system.daemon.set = true
+# We set this from the command line so that rtorrent can be run from the command line in interactive mode
+#system.daemon.set = true
 
 # Set scrape intervals for active (~10 mins) and idle items (~12 hours)
 method.insert = cfg.scrape_interval.active, value,   580

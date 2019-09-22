@@ -8,10 +8,11 @@ Type=simple
 KillMode=process
 #User=rtorrent
 #PIDFile=/var/run/rtorrent.pid
-ExecStartPre=/bin/bash -c "if test -e /var/run/rtorrent/rtorrent.lock && test -z pidof rtorrent; then rm -f /var/run/rtorrent/rtorrent.lock; fi"
+ExecStartPre=/bin/bash -c "if test -e /data/rtorrent/session/rtorrent.lock && test -z pidof rtorrent; then rm -f /data/rtorrent/session/rtorrent.lock; fi"
 ExecStart=/usr/local/bin/rtorrent -n -o import=/etc/rtorrent.rc,system.daemon.set=true
 #WorkingDirectory=%h
 Restart=on-failure
 
 [Install]
 WantedBy=multi-user.target
+
